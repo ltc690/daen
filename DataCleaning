@@ -1,0 +1,20 @@
+dss <- read_excel("Downloads/dss.xlsx") #bring in file
+View(dss)
+dss$inspector_name<-gsub(":","",as.character(dss$inspector_name)) #remove : from inspector name
+View(dss)
+dss1<- dss[!dss$`standard_#`=="",] #remove empty standard number
+dss1 <- dss[grep("22VAC", dss$`standard_#`),] # remove values that do not contain 22VAC in standard number
+names(dss1)[24] <- 'StandardNumber' #changed column name of Standard_ to StandardNumber
+dss1 <- dss1 %>% separate(date, c('Month', 'Day', 'Year')) #this row has 106 empty rows. This seperates the column into three columns
+dss1 <- dss1 %>% extract(city_zip, c("City", "State"), "([^,]+), ([^)]+)") #this splits the city_zip column into two.
+dss1 <- dss1 %>% separate(State, c('State', 'ZIP')) # This splits the state column. Creating a new ZIP column. 
+dss3<- dss1 %>% separate(StandardNumber, into = c("A", "B", "C", "D")) # seperating Standard number into 4 columns
+dss3[is.na(dss3)] <- "" # making NA into Blanks
+dss3$CD <- paste0(dss3$C, dss3$D)#combine the two columns
+newX2 <- dss3[ dss3$CD %in% LCF_Buckets$`Section Concat`,] # Matches rows from columns and drops the rest. 
+names(newX2)[32] <- 'Section Concat' #renaming column to match for the merge
+df = merge(x=newX2,y=LCF_Buckets,by="Section Concat") #joins the columns
+df$StandardNumber <- paste0(df$A, "-", df$B, "-", df$C, "-", df$D) # combines columns that were separated
+df <- subset( df, select = -c(A,B,C,D ) ) #removing columns to clean up
+df <- subset( df, select = -`Section Concat`) #removing column
+Collapse
