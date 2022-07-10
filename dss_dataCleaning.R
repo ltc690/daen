@@ -1,22 +1,27 @@
-# Read DSS file
-dss <- read_excel("Downloads/dss.xlsx") 
-View(dss)
+# Read files - Can be found on LTC Github Repository
+dss <- read_excel("dss.xlsx")            # Web scraped file from VA DSS site
+lcf <- read_excel('lcf_buckets.xlsx')    # Manual mapping file
 
-# Remove : from inspector name
+# View data summary
+summary(dss)
+
+# Remove ":" from inspector name column
 dss$inspector_name<-gsub(":","",as.character(dss$inspector_name)) 
-View(dss)
 
-# Remove empty standard number
-dss1<- dss[!dss$`standard_#`=="",] 
+# Remove null standard numbers
+dss1 <- dss[!is.na(dss$`standard_#`),]
 
-# Remove values that do not contain 22VAC in standard number
+# Remove standard numbers that do not contain "22VAC"
 dss1 <- dss[grep("22VAC", dss$`standard_#`),] 
 
 # Changed column name of Standard_ to StandardNumber
 names(dss1)[24] <- 'StandardNumber' 
 
-# This row has 106 empty rows. This seperates the column into three columns
-dss1 <- dss1 %>% separate(date, c('Month', 'Day', 'Year')) 
+# Date column has 382 empty rows. 
+# This separates the column into three separate ones.
+# We will look into removing the empty rows later.
+sum(is.na(dss1$date)) 
+dss1 <- dss1 %>% separate(date, c('Month', 'Day', 'Year'))
 
 # This splits the city_zip column into two.
 dss1 <- dss1 %>% extract(city_zip, c("City", "State"), "([^,]+), ([^)]+)") 
@@ -34,13 +39,13 @@ dss3[is.na(dss3)] <- ""
 dss3$CD <- paste0(dss3$C, dss3$D)
 
 # Matches rows from columns and drops the rest. 
-newX2 <- dss3[ dss3$CD %in% LCF_Buckets$`Section Concat`,] 
+newX2 <- dss3[ dss3$CD %in% lcf$`Section Concat`,] 
 
 # Renaming column to match for the merge
 names(newX2)[32] <- 'Section Concat' 
 
 # Joins the columns
-df = merge(x=newX2,y=LCF_Buckets,by="Section Concat") 
+df = merge(x=newX2,y=lcf,by="Section Concat") 
 
 # Combines columns that were separated
 df$StandardNumber <- paste0(df$A, "-", df$B, "-", df$C, "-", df$D) 
@@ -50,4 +55,8 @@ df <- subset( df, select = -c(A,B,C,D ) )
 
 # Removing column
 df <- subset( df, select = -`Section Concat`) 
-Collapse
+
+# The date column we split still contains 56 blank rows.
+# That is less than 2% of the data frame, so it's safe to remove these rows.
+sum(df$Month == '')
+df <- df[df$Month != '',]
